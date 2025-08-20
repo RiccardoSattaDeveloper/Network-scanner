@@ -1,0 +1,5 @@
+scapy==2.5.0
+PyQt5==5.15.10
+requests==2.31.0
+netifaces==0.11.0
+rich==13.7.1
