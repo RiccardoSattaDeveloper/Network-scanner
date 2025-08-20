@@ -4,6 +4,8 @@
 
 ---
 
-Per un corretto funzionamento del programma:
-• Avviare il programma con il seguente comando: `sudo python3 main.py`.
-•  Non selezionare l'interfaccia di rete della VPN, qualora se ne faccia uso.
+Avviare il programma con il seguente comando: `sudo python3 main.py`.
+
+---
+
+Non selezionare l'interfaccia di rete della VPN, qualora se ne faccia uso.
