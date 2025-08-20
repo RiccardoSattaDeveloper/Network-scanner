@@ -1,49 +1,64 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
+import sys
+import ipaddress
+import psutil
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QLabel,
+    QPushButton, QComboBox, QTextEdit, QMessageBox
+)
 from network_scanner import NetworkScanner
 
-class ScannerApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("LAN Scanner")
-        self.root.geometry("500x400")
-        self.root.resizable(False, False)
+def get_network_interfaces():
+    interfaces = []
+    for iface_name, addrs in psutil.net_if_addrs().items():
+        if iface_name == "lo":
+            continue
+        interfaces.append(iface_name)
+    return interfaces
 
-        ttk.Label(root, text="Range IP (lascia vuoto per rete locale):").pack(pady=5)
-        self.ip_entry = ttk.Entry(root, width=30)
-        self.ip_entry.pack(pady=5)
+class NetworkScannerGUI(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Network Scanner")
+        self.setGeometry(200, 200, 500, 400)
 
-        ttk.Label(root, text="Interfaccia di rete:").pack(pady=5)
-        self.iface_combobox = ttk.Combobox(root, values=self.get_interfaces(), state="readonly")
-        self.iface_combobox.pack(pady=5)
-        if self.iface_combobox['values']:
-            self.iface_combobox.current(0)
+        layout = QVBoxLayout()
 
-        self.scan_button = ttk.Button(root, text="Avvia scansione", command=self.start_scan)
-        self.scan_button.pack(pady=10)
+        self.label = QLabel("Seleziona l'interfaccia di rete:")
+        layout.addWidget(self.label)
 
-        self.text = tk.Text(root, height=15, width=60)
-        self.text.pack(pady=5)
-        self.text.config(state=tk.DISABLED)
+        self.interface_combo = QComboBox()
+        self.interface_combo.addItems(get_network_interfaces())
+        layout.addWidget(self.interface_combo)
 
-    def get_interfaces(self):
-        from scapy.all import get_if_list
-        return get_if_list()
+        self.scan_button = QPushButton("Scansiona la rete")
+        self.scan_button.clicked.connect(self.scan_network)
+        layout.addWidget(self.scan_button)
 
-    def log(self, message):
-        self.text.config(state=tk.NORMAL)
-        self.text.insert(tk.END, message + "\n")
-        self.text.see(tk.END)
-        self.text.config(state=tk.DISABLED)
+        self.result_area = QTextEdit()
+        self.result_area.setReadOnly(True)
+        layout.addWidget(self.result_area)
 
-    def start_scan(self):
-        ip_range = self.ip_entry.get().strip() or None
-        iface = self.iface_combobox.get() or None
-        self.text.config(state=tk.NORMAL)
-        self.text.delete(1.0, tk.END)
-        self.text.config(state=tk.DISABLED)
+        self.setLayout(layout)
 
-        self.log(f"Scansione della rete locale in corso su {iface}...")
+    def scan_network(self):
+        interface = self.interface_combo.currentText()
+        scanner = NetworkScanner(interface)
+        local_ip = scanner.get_local_ip()
 
-        self.scanner = NetworkScanner(ip_range=ip_range, interface=iface)
-        self.scanner.start_scan_thread(callback=self.log)
+        try:
+            network = ipaddress.IPv4Network(local_ip + "/24", strict=False)
+            ip_range = str(network)
+        except Exception as e:
+            QMessageBox.critical(self, "Errore", f"Errore nel calcolo della rete: {e}")
+            return
+
+        self.result_area.append(f"Scansione in corso su {ip_range} ({interface})...\n")
+        devices = scanner.scan(ip_range)
+
+        if isinstance(devices, str):
+            self.result_area.append(devices)
+        elif devices:
+            for device in devices:
+                self.result_area.append(f"IP: {device['ip']}  -  MAC: {device['mac']}")
+        else:
+            self.result_area.append("Nessun host trovato.")
