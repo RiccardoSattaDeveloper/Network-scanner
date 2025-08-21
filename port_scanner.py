@@ -1,6 +1,6 @@
 from scapy.all import IP, TCP, sr1
 
-class PortScanner: # Scansione delle porte TCP di un host: esegue una SYN scan su una lista di porte e identifica quelle aperte.
+class PortScanner:
 
     def __init__(self, ip: str, ports=None): 
         self.ip = ip
